@@ -17,17 +17,17 @@ soup = BeautifulSoup(html_content,"html.parser") #Converting into Parsed HTML
 #Fetching anchor tags of quotes
 tag_elements_in_html_content = soup.find_all("span", class_ = "tag-item")
 
-author_names_list = []
+
 quotes_data = []
 authors_data = []  #list of authors information
-
+list_of_about_authors_link = []  #making list of authors link
 
 
 # Fetching quotes from next page for each_tag =>maximum pages for each_tag element having only two pages
 # Here using while loop to to get the data from next page of
 
 
-def scrape_page(link_url, quotes_data,author_names_list):
+def scrape_page(link_url, quotes_data , list_of_about_authors_link):
 
     max_pages = 2
     current_page = 1
@@ -56,7 +56,9 @@ def scrape_page(link_url, quotes_data,author_names_list):
             #print(author_name.string)
             each_quote["author"] = author_name.string
             name = author_name.string
-            author_names_list.append((name))
+
+            about_author_link = quotes.a['href']
+            list_of_about_authors_link.append((about_author_link))
 
 
 
@@ -78,45 +80,16 @@ def scrape_page(link_url, quotes_data,author_names_list):
 
 #links_url_list = []
 
+
+
 def making_link_for_tag_elements(each_tag_element):
 
     link = each_tag_element.select_one('.tag-item a')["href"]
     string_link = each_tag_element.a.text
     link_url = "http://quotes.toscrape.com" + link # Fetching url for all tag elements to scrape data
 
-    scrape_page(link_url,quotes_data,author_names_list)
+    scrape_page(link_url,quotes_data,list_of_about_authors_link)
 
-def get_unique_author_name_to_fetch_html(unique_author_names):
-    list_links = []
-    for i in unique_author_names:
-        result = ''
-        update = i.split(" ")
-        for i in update:
-            if '.' in i:
-                res = ''
-                for j in i:
-                    if j == ".":
-                        res += "-"
-                    else:
-                        res += j
-                # print(res)
-                result += res
-            elif "'" in i:
-                r = ''
-                for k in i:
-                    if k == "'":
-                        continue
-                    r += k
-                result += r
-            else:
-                result += i + "-"
-        list_links.append(result)
-    updated_name_list = []
-    for p in list_links:
-        length_ = len(p)
-        updated_name = p[:length_ - 1]
-        updated_name_list.append(updated_name)
-    return updated_name_list
 
 
 # Getting tag elements with their links to make url to fetch data in next pages => Iteration makes every tag element
@@ -124,26 +97,24 @@ def get_unique_author_name_to_fetch_html(unique_author_names):
 for each_tag_element in tag_elements_in_html_content:
     making_link_for_tag_elements(each_tag_element)
 
-unique_author_names = list(set(author_names_list))
-
-# Get list_of_unique_author_names in string format in order to put in link to get parsed HTML
-
-list_of_authors = get_unique_author_name_to_fetch_html(unique_author_names)
+def get_about_author_information(each_link_about_author,authors_data):
+    information = dict()       # Each Author informating storing in dictionary
+    url = "http://quotes.toscrape.com/" + each_link_about_author + '/'
 
 
-# Fetch the author information by iterating the list_of_authors
-authors_data = []
-for each_author_inform in list_of_authors:
-    information = dict()
-    url = "http://quotes.toscrape.com/author/" + each_author_inform + "/"
 
     request_url = requests.get(url)
     soup = BeautifulSoup(request_url.content,"html.parser")
+    #print(soup.prettify())
+
 
     author_details = soup.find("div", "author-details")
-    author_name = each_author_inform.split('-')
-    name = " ".join(author_name)
 
+    author_name_row = author_details.find('h3')
+    name = ''
+    for row in author_name_row:
+        name += row.text
+        break
 
     author_born_location = author_details.p
     list_of_born_location = author_born_location.select("span")
@@ -153,12 +124,20 @@ for each_author_inform in list_of_authors:
     information['reference'] = url
     authors_data.append(information)
 
+
+links = list(set(list_of_about_authors_link))
+
+for each_link_about_author in links:
+    get_about_author_information(each_link_about_author,authors_data)
+
+
 data = dict()
 data["quotes"] = quotes_data
-data["author"] = authors_data
+data["authors"] = authors_data
 
 
 
+print(data)
 #Saving data in a file
 
 with open("quotes.toscrape.json","w") as f:
